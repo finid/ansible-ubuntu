@@ -1,0 +1,108 @@
+########################################################
+# Automate Initial Server Setup of Ubuntu 20.04 Servers
+########################################################
+# The tasks in this playbook will be run against servers specified
+# in the control node's `/etc/ansible/hosts` file and will call on
+# variables defined in the `var/default.yml` file.
+# If you change the value of hosts here.
+# The value of the **hosts** attribute should be the same as the 
+# group name of hosts defined in the `/etc/ansible/hosts` file.
+- hosts: droplets
+  become: true
+  vars_files:
+    - vars/default.yml
+
+  tasks:
+# This task updates the package database, the equivalent of the
+# following command: `sudo apt update`.
+    - name: update cache
+      apt:
+        update_cache: yes
+
+# This task upgrades all installed packages, the equivalent of the
+# following command: `sudo apt upgrade -y`.
+    - name: Update all installed packages
+      apt:
+        name: "*"
+        state: latest
+
+# This task ensures that the NTP daemon is running. This is especially
+# important when you want to make sure that the hosts that will power
+# your distributed application are in sync - time-wise.
+    - name: Make sure NTP service is running
+      ansible.builtin.systemd:
+        state: started
+        name: systemd-timesyncd
+
+# This task verifies that a sudo group exists on the hosts. We know this 
+# is true for Ubuntu servers, but it doesn't hurt to verify.
+    - name: Make sure we have a 'sudo' group
+      group:
+        name: sudo
+        state: present
+
+# This task modifies a line in the target file so that all users in the 
+# `sudo` group have passwordless access.
+    - name: Allow 'sudo' group to have passwordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+# This task creates the user specified in the `var/defaults.yml` file.
+    - name: Create a user with sudo privileges
+      user:
+        name: "{{ create_user }}"
+        state: present
+        groups: sudo
+        append: true
+        create_home: true
+        shell: /bin/bash
+
+# This task copies the public SSH key over to the user's home directory.
+# This performs the same task as the `ssh-copy-id` command.
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ create_user }}"
+        state: present
+        key: "{{ copy_local_key }}"
+
+# Here we look for a line that starts with the regexp in the SSH daemon's
+# configuration file and change its value to "no". We do this so that
+# any attempt to log in using the root account after running this playbook
+# will fail. 
+    - name: Disable remote login for root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^PermitRootLogin yes'
+        line: 'PermitRootLogin no'
+
+# This task will configure the UFW firewall application to allow SSH traffic in.
+    - name: UFW - Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
+
+# This task will then deny all other traffic access to the hosts and enable UFW.
+    - name: UFW - Deny other incoming traffic and enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+# This tasks will remove package dependencies that are no longer required, the
+# equivalent of running the `sudo apt autoremove` command.
+    - name: Remove dependencies that are no longer required
+      apt:
+        autoremove: yes
+
+# Since the SSH daemon's configuration file was modified, this task will apply
+# the change by reloading the daemon, ensuring that any attempt to log in using
+# the root account will fail.
+    - name: Restart the SSH daemon
+      ansible.builtin.systemd:
+        state: restarted
+        name: ssh
