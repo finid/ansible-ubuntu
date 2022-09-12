@@ -16,13 +16,13 @@
 # This task updates the package database, the equivalent of the
 # following command: `sudo apt update`.
     - name: update cache
-      apt:
+      ansible.builtin.apt:
         update_cache: yes
 
 # This task upgrades all installed packages, the equivalent of the
 # following command: `sudo apt upgrade -y`.
     - name: Update all installed packages
-      apt:
+      ansible.builtin.apt:
         name: "*"
         state: latest
 
@@ -37,14 +37,14 @@
 # This task verifies that a sudo group exists on the hosts. We know this 
 # is true for Ubuntu servers, but it doesn't hurt to verify.
     - name: Make sure we have a 'sudo' group
-      group:
+      ansible.builtin.group:
         name: sudo
         state: present
 
 # This task modifies a line in the target file so that all users in the 
 # `sudo` group have passwordless access.
     - name: Allow 'sudo' group to have passwordless sudo
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/sudoers
         state: present
         regexp: '^%sudo'
@@ -53,7 +53,7 @@
 
 # This task creates the user specified in the `var/defaults.yml` file.
     - name: Create a user with sudo privileges
-      user:
+      ansible.builtin.user:
         name: "{{ create_user }}"
         state: present
         groups: sudo
@@ -64,7 +64,7 @@
 # This task copies the public SSH key over to the user's home directory.
 # This performs the same task as the `ssh-copy-id` command.
     - name: Set authorized key for remote user
-      authorized_key:
+      ansible.builtin.authorized_key:
         user: "{{ create_user }}"
         state: present
         key: "{{ copy_local_key }}"
@@ -74,7 +74,7 @@
 # any attempt to log in using the root account after running this playbook
 # will fail. 
     - name: Disable remote login for root
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         state: present
         regexp: '^PermitRootLogin yes'
@@ -82,13 +82,13 @@
 
 # This task will configure the UFW firewall application to allow SSH traffic in.
     - name: UFW - Allow SSH connections
-      ufw:
+      ansible.builtin.ufw:
         rule: allow
         name: OpenSSH
 
 # This task will then deny all other traffic access to the hosts and enable UFW.
     - name: UFW - Deny other incoming traffic and enable UFW
-      ufw:
+      ansible.builtin.ufw:
         state: enabled
         policy: deny
         direction: incoming
@@ -96,7 +96,7 @@
 # This tasks will remove package dependencies that are no longer required, the
 # equivalent of running the `sudo apt autoremove` command.
     - name: Remove dependencies that are no longer required
-      apt:
+      ansible.builtin.apt:
         autoremove: yes
 
 # Since the SSH daemon's configuration file was modified, this task will apply
