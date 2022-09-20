@@ -2,6 +2,9 @@
 # will be created on all the hosts.
 create_user: finid
 
+# SSH port
+ssh_port: 5995
+
 # This tells Ansible where to find the SSH public key fingerprint file
 # to copy over to the target hosts. If the name of your local machine's
 # SSH public key fingerprint file is not `id_rsa.pub`, you'll have
