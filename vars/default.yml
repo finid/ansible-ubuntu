@@ -1,6 +1,6 @@
 # Specify the user you want to create here. The same user 
 # will be created on all the hosts.
-create_user: finid
+create_user: sammy
 
 # SSH port
 ssh_port: 5995
